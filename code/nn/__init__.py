@@ -208,7 +208,7 @@ class LSTM(Layer):
 class RCNN(Layer):
 
     def __init__(self, n_in, n_out, activation=tanh,
-            order=1, has_outgate=True, mode=1, clip_gradients=False):
+            order=2, has_outgate=False, mode=1, clip_gradients=False):
 
         self.n_in = n_in
         self.n_out = n_out

@@ -11,7 +11,7 @@ import theano.tensor as T
 
 from utils import load_embedding_iterator
 from nn import get_activation_by_name, create_optimization_updates
-from nn import Layer, EmbeddingLayer, LSTM, RCNN, Dropout, apply_dropout
+from nn import Layer, EmbeddingLayer, LSTM, GRU, RCNN, Dropout, apply_dropout
 import myio
 from myio import say
 from evaluation import Evaluation
@@ -22,6 +22,7 @@ class Model:
         self.embedding_layer = embedding_layer
         self.padding_id = embedding_layer.vocab_map["<padding>"]
         self.bos_id = embedding_layer.vocab_map["<s>"]
+        self.eos_id = embedding_layer.vocab_map["</s>"]
         self.weights = weights
 
     def ready(self):
@@ -50,11 +51,13 @@ class Model:
             LayerType = RCNN
         elif args.layer.lower() == "lstm":
             LayerType = LSTM
+        elif args.layer.lower() == "gru":
+            LayerType = GRU
 
         depth = self.depth = args.depth
         layers = self.layers = [ ]
         for i in range(depth*2):
-            if LayerType == LSTM:
+            if LayerType != RCNN:
                 feature_layer = LayerType(
                         n_in = n_e if i/2 == 0 else n_d,
                         n_out = n_d,
@@ -153,6 +156,8 @@ class Model:
         dropout_prob = np.float64(args.dropout).astype(theano.config.floatX)
         batch_size = args.batch_size
         padding_id = self.padding_id
+        bos_id = self.bos_id
+        eos_id = self.eos_id
 
         #train_batches = myio.create_batches(ids_corpus, train, batch_size, padding_id, args.loss)
 
@@ -190,12 +195,12 @@ class Model:
         max_epoch = args.max_epoch
         for epoch in xrange(max_epoch):
             unchanged += 1
-            if unchanged > 15: break
+            if unchanged > 10: break
 
             start_time = time.time()
 
             train_batches = myio.create_batches(ids_corpus, train, batch_size,
-                                    padding_id, auto_encode=True)
+                                    padding_id, bos_id, eos_id, auto_encode=True)
             N =len(train_batches)
 
             train_cost = 0.0
@@ -203,17 +208,17 @@ class Model:
             train_loss2 = 0.0
             for i in xrange(N):
                 # get current batch
-                t1, b1, t2, b2 = train_batches[i]
+                t1, b1, t2 = train_batches[i]
 
                 if args.use_title:
-                    idxs, idys = myio.create_one_batch(t1, t2, self.padding_id, self.bos_id)
+                    idxs, idys = myio.create_one_batch(t1, t2, padding_id)
                     cur_cost, cur_loss, grad_norm = train_func(idxs, idys)
                     train_cost += cur_cost
                     train_loss += cur_loss
                     train_loss2 += cur_loss / idys.shape[0]
 
                 if args.use_body:
-                    idxs, idys = myio.create_one_batch(b1, t2, self.padding_id, self.bos_id)
+                    idxs, idys = myio.create_one_batch(b1, t2, padding_id)
                     cur_cost, cur_loss, grad_norm = train_func(idxs, idys)
                     train_cost += cur_cost
                     train_loss += cur_loss
@@ -239,7 +244,7 @@ class Model:
                                         [ test_MAP, test_MRR, test_P1, test_P5 ] ]
                         )
                         if args.model:
-                            self.save_model(args.model+".iter{}.pkl.gz".format(epoch))
+                            self.save_model(args.model+".pkl.gz")
 
                     dropout_p = np.float64(args.dropout).astype(
                                 theano.config.floatX)
@@ -297,7 +302,7 @@ class Model:
     def evaluate(self, data, eval_func):
         res = [ ]
         for t, b, labels in data:
-            idts, idbs = myio.create_one_batch(t, b, self.padding_id, self.bos_id)
+            idts, idbs = myio.create_one_batch(t, b, self.padding_id)
             scores = eval_func(idts)
             assert len(scores) == len(labels)
             ranks = (-scores).argsort()
@@ -353,15 +358,16 @@ def main(args):
         test = myio.create_eval_batches(ids_corpus, test, padding_id)
 
     if args.train:
+        model = Model(args, embedding_layer,
+                      weights=weights if args.reweight else None)
+
         start_time = time.time()
         train = myio.read_annotations(args.train)
         if not args.use_anno: train = [ ]
         train_batches = myio.create_batches(ids_corpus, train, args.batch_size,
-                                padding_id, auto_encode=True)
+                    model.padding_id, model.bos_id, model.eos_id, auto_encode=True)
         say("{} to create batches\n".format(time.time()-start_time))
 
-        model = Model(args, embedding_layer,
-                      weights=weights if args.reweight else None)
         model.ready()
         model.train(
                 ids_corpus,

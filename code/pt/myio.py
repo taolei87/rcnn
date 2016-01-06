@@ -104,7 +104,8 @@ def read_annotations(path, K_neg=0, prune_pos_cnt=10):
             lst.append((pid, qids, qlabels))
     return lst
 
-def create_batches(ids_corpus, data, batch_size, padding_id, auto_encode=True, perm=None):
+def create_batches(ids_corpus, data, batch_size, padding_id,
+                        bos_id, eos_id, auto_encode=True, perm=None):
     if perm is None:
         perm = range(len(data))
         random.shuffle(perm)
@@ -123,7 +124,7 @@ def create_batches(ids_corpus, data, batch_size, padding_id, auto_encode=True, p
     titles1 = [ ]
     titles2 = [ ]
     bodies1 = [ ]
-    bodies2 = [ ]
+    #bodies2 = [ ]
     batches = [ ]
     N = len(pair_lst)
     for i in xrange(N):
@@ -134,15 +135,16 @@ def create_batches(ids_corpus, data, batch_size, padding_id, auto_encode=True, p
         titles1.append(t)
         bodies1.append(b)
         t, b = ids_corpus[qid]
-        titles2.append(t)
-        bodies2.append(b)
+        titles2.append(np.hstack([bos_id, t, eos_id]).astype('int32'))
+        #bodies2.append(b)
         cnt += 1
         if cnt == batch_size or i == N-1:
-            batches.append((titles1, bodies1, titles2, bodies2))
+            #batches.append((titles1, bodies1, titles2, bodies2))
+            batches.append((titles1, bodies1, titles2))
             titles1 = [ ]
             titles2 = [ ]
             bodies1 = [ ]
-            bodies2 = [ ]
+            #bodies2 = [ ]
             cnt = 0
     return batches
 
@@ -159,11 +161,11 @@ def create_eval_batches(ids_corpus, data, padding_id):
         lst.append((titles, bodies, np.array(qlabels, dtype="int32")))
     return lst
 
-def create_one_batch(source, target, padding_id, bos_id):
+def create_one_batch(source, target, padding_id):
     max_source_len = max(1, max(len(x) for x in source))
     max_target_len = max(1, max(len(x) for x in target))
     source = np.column_stack([ np.pad(x,(max_source_len-len(x),0),'constant',
                             constant_values=padding_id) for x in source])
-    target = np.column_stack([ np.pad(x,(1,max_target_len-len(x)),'constant',
-                            constant_values=(bos_id, padding_id)) for x in target])
+    target = np.column_stack([ np.pad(x,(0,max_target_len-len(x)),'constant',
+                            constant_values=padding_id) for x in target])
     return source, target

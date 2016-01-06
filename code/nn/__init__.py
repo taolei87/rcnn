@@ -205,10 +205,62 @@ class LSTM(Layer):
             layer.params = param_list[start:end]
             start = end
 
+class GRU(Layer):
+    def __init__(self, n_in, n_out, activation=tanh,
+            clip_gradients=False):
+
+        self.n_in = n_in
+        self.n_out = n_out
+        self.activation = activation
+        self.clip_gradients = clip_gradients
+
+        self.reset_gate = RecurrentLayer(n_in, n_out, sigmoid, clip_gradients)
+        self.update_gate = RecurrentLayer(n_in, n_out, sigmoid, clip_gradients)
+        self.input_layer = RecurrentLayer(n_in, n_out, activation, clip_gradients)
+
+        self.internal_layers = [ self.reset_gate, self.update_gate, self.input_layer ]
+
+    def forward(self, x, h):
+        n_in, n_out, activation = self.n_in, self.n_out, self.activation
+
+        reset_t = self.reset_gate.forward(x, h)
+        update_t = self.update_gate.forward(x, h)
+        h_reset = reset_t * h
+
+        h_new = self.input_layer.forward(x, h_reset)
+        h_out = update_t*h_new + (1.0-update_t)*h
+        return h_out
+
+    def forward_all(self, x, h0=None, return_c=True):
+        if h0 is None:
+            if x.ndim > 1:
+                h0 = T.zeros((x.shape[1], self.n_out), dtype=theano.config.floatX)
+            else:
+                h0 = T.zeros((self.n_out,), dtype=theano.config.floatX)
+        h, _ = theano.scan(
+                    fn = self.forward,
+                    sequences = x,
+                    outputs_info = [ h0 ]
+                )
+        return h
+
+    @property
+    def params(self):
+        return [ x for layer in self.internal_layers for x in layer.params ]
+
+    @params.setter
+    def params(self, param_list):
+        start = 0
+        for layer in self.internal_layers:
+            end = start + len(layer.params)
+            layer.params = param_list[start:end]
+            start = end
+
+
 class RCNN(Layer):
 
     def __init__(self, n_in, n_out, activation=tanh,
-            order=2, has_outgate=False, mode=1, clip_gradients=False):
+            order=1, has_outgate=True, mode=1, clip_gradients=False):
 
         self.n_in = n_in
         self.n_out = n_out

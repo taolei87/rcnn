@@ -11,7 +11,7 @@ import theano.tensor as T
 
 from utils import load_embedding_iterator
 from nn import get_activation_by_name, create_optimization_updates
-from nn import EmbeddingLayer, LSTM, RCNN, Dropout, apply_dropout
+from nn import EmbeddingLayer, LSTM, GRU, RCNN, Dropout, apply_dropout
 import myio
 from myio import say
 from evaluation import Evaluation
@@ -50,10 +50,13 @@ class Model:
             LayerType = RCNN
         elif args.layer.lower() == "lstm":
             LayerType = LSTM
+        elif args.layer.lower() == "gru":
+            LayerType = GRU
+
         depth = self.depth = args.depth
         layers = self.layers = [ ]
         for i in range(depth):
-            if LayerType == LSTM:
+            if LayerType != RCNN:
                 feature_layer = LayerType(
                         n_in = n_e if i == 0 else n_d,
                         n_out = n_d,
@@ -310,7 +313,7 @@ class Model:
         with gzip.open(args.load_pretrain) as fin:
             data = pickle.load(fin)
             assert args.hidden_dim == data["d"]
-            assert args.layer == data["layer_type"]
+            #assert args.layer == data["layer_type"]
             for l, p in zip(self.layers, data["params"]):
                 l.params = p
 

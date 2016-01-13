@@ -2,7 +2,7 @@
 
 This repo contains Theano implementations of popular neural network components, optimization methods and new architectures used in recent research papers.
 
-Source code of NN library at [code/nn/](https://github.com/taolei87/rcnn/tree/master/code/nn)
+Source code of NN library at [code/nn/](/code/nn)
 
 #### Features
   - Basic modules including feedforward layer, dropout layer, word embedding layer, RNN, LSTM, GRU and CNN
@@ -16,11 +16,14 @@ Source code of NN library at [code/nn/](https://github.com/taolei87/rcnn/tree/ma
 
 #### Dependencies
   [Theano](http://deeplearning.net/software/theano/) >= 0.7, Python >= 2.7, Numpy
-
   
+<br>
+
 ----------
 
-  
 ### Projects
+#### 1. Similar Question Retrieval 
 
-  TBD
+The directories [code/qa](/code/qa) and [code/pt](/code/pt) contain the implementation of the model described in the paper [Denoising Bodies to Titles: Retrieving Similar Questions with Recurrent Convolutional Models](http://arxiv.org/abs/1512.05726).
+
+The training, dev and test data are available at [data/](/data/). Pre-trained word vectors available at [vectors/](/vectors/)

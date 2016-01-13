@@ -431,7 +431,7 @@ if __name__ == "__main__":
         )
     argparser.add_argument("--max_epoch",
             type = int,
-            default = 40
+            default = 50
         )
     argparser.add_argument("--cut_off",
             type = int,

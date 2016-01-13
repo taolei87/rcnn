@@ -405,7 +405,7 @@ if __name__ == "__main__":
         )
     argparser.add_argument("--l2_reg",
             type = float,
-            default = 0.00001
+            default = 1e-7
         )
     argparser.add_argument("--activation", "-act",
             type = str,

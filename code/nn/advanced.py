@@ -44,16 +44,16 @@ class StrCNN:
 
     def create_parameters(self):
         n_in, n_out = self.n_in, self.n_out
-        #rng_type = "uniform"
-        #scale = 1.0/self.n_out**0.5
-        rng_type = None
-        scale = 1.0
+        rng_type = "uniform"
+        scale = 1.0/self.n_out**0.5
+        #rng_type = None
+        #scale = 1.0
         self.P = create_shared(random_init((n_in, n_out), rng_type=rng_type)*scale, name="P")
         self.Q = create_shared(random_init((n_in, n_out), rng_type=rng_type)*scale, name="Q")
         self.R = create_shared(random_init((n_in, n_out), rng_type=rng_type)*scale, name="R")
         self.O = create_shared(random_init((n_out, n_out), rng_type=rng_type)*scale, name="O")
         if self.activation == ReLU:
-            self.b = create_shared(np.ones(n_out, dtype=theano.config.floatX)*0.01, name="b")
+            self.b = create_shared(np.zeros((n_out,), dtype=theano.config.floatX)+0.01, name="b")
         else:
             self.b = create_shared(random_init((n_out,)), name="b")
 

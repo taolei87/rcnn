@@ -52,17 +52,18 @@ class Dropout(object):
         mask = self.srng.binomial(
                 n = 1,
                 p = 1-self.dropout_prob,
-                size = x.shape
+                size = x.shape,
+                dtype = theano.config.floatX
             )
-        mask = T.cast(mask, theano.config.floatX) / d
-        return x*mask
+        return x*mask/d
 
 
-def apply_dropout(x, dropout_prob):
+
+def apply_dropout(x, dropout_prob, v2=False):
     '''
         Apply dropout on x with the specified probability
     '''
-    return Dropout(dropout_prob).forward(x)
+    return Dropout(dropout_prob, v2=v2).forward(x)
 
 
 class Layer(object):
@@ -114,7 +115,8 @@ class Layer(object):
         else:
             W_vals = random_init((n_in,n_out))
             if activation == softmax:
-                W_vals *= 0.001
+                #W_vals *= 0.000
+                W_vals = np.zeros((n_in,n_out), dtype=theano.config.floatX)
             if activation == ReLU:
                 b_vals = np.ones(n_out, dtype=theano.config.floatX) * 0.01
             else:
@@ -228,10 +230,12 @@ class EmbeddingLayer(object):
                     ))
                 n_d = len(emb_vals[0])
 
+            say("{} pre-trained embeddings loaded.\n".format(len(emb_vals)))
+
             for word in vocab:
                 if word not in vocab_map:
                     vocab_map[word] = len(vocab_map)
-                    emb_vals.append(random_init((n_d,))*0.001)
+                    emb_vals.append(random_init((n_d,))*(0.001 if word != oov else 0.0))
 
             emb_vals = np.vstack(emb_vals).astype(theano.config.floatX)
             self.vocab_map = vocab_map
@@ -261,6 +265,7 @@ class EmbeddingLayer(object):
 
         self.n_V = len(self.vocab_map)
         self.n_d = n_d
+        say("Vocabulary size: {}.\n".format(self.n_V))
 
     def map_to_ids(self, words, filter_oov=False):
         '''

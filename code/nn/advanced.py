@@ -27,7 +27,7 @@ from .basic import Layer, RecurrentLayer
     This class implements the non-consecutive, non-linear CNN model described in
         Molding CNNs for text (http://arxiv.org/abs/1508.04112)
 '''
-class StrCNN:
+class StrCNN(Layer):
 
     def __init__(self, n_in, n_out, activation=None, decay=0.0, order=2, use_all_grams=True):
         self.n_in = n_in
@@ -53,7 +53,7 @@ class StrCNN:
         self.R = create_shared(random_init((n_in, n_out), rng_type=rng_type)*scale, name="R")
         self.O = create_shared(random_init((n_out, n_out), rng_type=rng_type)*scale, name="O")
         if self.activation == ReLU:
-            self.b = create_shared(np.zeros((n_out,), dtype=theano.config.floatX)+0.01, name="b")
+            self.b = create_shared(np.ones(n_out, dtype=theano.config.floatX)*0.01, name="b")
         else:
             self.b = create_shared(random_init((n_out,)), name="b")
 
@@ -114,7 +114,7 @@ class StrCNN:
 
     This layer is uni-directional and non-recurrent.
 '''
-class AttentionLayer:
+class AttentionLayer(Layer):
     def __init__(self, n_d, activation):
         self.n_d = n_d
         self.activation = activation
@@ -250,7 +250,7 @@ class AttentionLayer:
 
     This layer is uni-directional and non-recurrent.
 '''
-class BilinearAttentionLayer:
+class BilinearAttentionLayer(Layer):
     def __init__(self, n_d, activation, weighted_output=True):
         self.n_d = n_d
         self.activation = activation
@@ -392,7 +392,7 @@ class BilinearAttentionLayer:
         Retrieving Similar Questions with Recurrent Convolutional Models
         (http://arxiv.org/abs/1512.05726)
 '''
-class RCNN:
+class RCNN(Layer):
 
     '''
         RCNN
@@ -516,6 +516,60 @@ class RCNN:
             return h[:,:,self.n_out*self.order:]
         else:
             return h[:,self.n_out*self.order:]
+
+    def forward2(self, x, hc, f_tm1):
+        order, n_in, n_out, activation = self.order, self.n_in, self.n_out, self.activation
+        layers = self.internal_layers
+        if hc.ndim > 1:
+            h_tm1 = hc[:, n_out*order:]
+        else:
+            h_tm1 = hc[n_out*order:]
+
+        forget_t = layers[order].forward(x, h_tm1)
+        lst = [ ]
+        for i in range(order):
+            if hc.ndim > 1:
+                c_i_tm1 = hc[:, n_out*i:n_out*i+n_out]
+            else:
+                c_i_tm1 = hc[n_out*i:n_out*i+n_out]
+            in_i_t = layers[i].forward(x)
+            if i == 0:
+                c_i_t = forget_t * c_i_tm1 + (1-forget_t) * in_i_t
+            elif self.mode == 0:
+                c_i_t = forget_t * c_i_tm1 + (1-forget_t) * (in_i_t * c_im1_t)
+            else:
+                c_i_t = forget_t * c_i_tm1 + (1-forget_t) * (in_i_t + c_im1_tm1)
+            lst.append(c_i_t)
+            c_im1_tm1 = c_i_tm1
+            c_im1_t = c_i_t
+
+        if not self.has_outgate:
+            h_t = activation(c_i_t + self.bias)
+        else:
+            out_t = self.out_gate.forward(x, h_tm1)
+            h_t = out_t * activation(c_i_t + self.bias)
+        lst.append(h_t)
+
+        if hc.ndim > 1:
+            return T.concatenate(lst, axis=1), forget_t
+        else:
+            return T.concatenate(lst), forget_t
+
+    def get_input_gate(self, x, h0=None):
+        if h0 is None:
+            if x.ndim > 1:
+                h0 = T.zeros((x.shape[1], self.n_out*(self.order+1)), dtype=theano.config.floatX)
+                f0 = T.zeros((x.shape[1], self.n_out), dtype=theano.config.floatX)
+            else:
+                h0 = T.zeros((self.n_out*(self.order+1),), dtype=theano.config.floatX)
+                f0 = T.zeros((self.n_out,), dtype=theano.config.floatX)
+
+        [h, f], _ = theano.scan(
+                    fn = self.forward2,
+                    sequences = x,
+                    outputs_info = [ h0,f0 ]
+                )
+        return 1.0-f
 
     @property
     def params(self):

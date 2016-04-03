@@ -58,7 +58,6 @@ class Dropout(object):
         return x*mask/d
 
 
-
 def apply_dropout(x, dropout_prob, v2=False):
     '''
         Apply dropout on x with the specified probability
@@ -115,8 +114,7 @@ class Layer(object):
         else:
             W_vals = random_init((n_in,n_out))
             if activation == softmax:
-                #W_vals *= 0.000
-                W_vals = np.zeros((n_in,n_out), dtype=theano.config.floatX)
+                W_vals *= 0.001
             if activation == ReLU:
                 b_vals = np.ones(n_out, dtype=theano.config.floatX) * 0.01
             else:
@@ -216,12 +214,14 @@ class EmbeddingLayer(object):
     def __init__(self, n_d, vocab, oov="<unk>", embs=None, fix_init_embs=True):
 
         if embs is not None:
+            lst_words = [ ]
             vocab_map = {}
             emb_vals = [ ]
             for word, vector in embs:
                 assert word not in vocab_map, "Duplicate words in initial embeddings"
                 vocab_map[word] = len(vocab_map)
                 emb_vals.append(vector)
+                lst_words.append(word)
 
             self.init_end = len(emb_vals) if fix_init_embs else -1
             if n_d != len(emb_vals[0]):
@@ -235,16 +235,21 @@ class EmbeddingLayer(object):
             for word in vocab:
                 if word not in vocab_map:
                     vocab_map[word] = len(vocab_map)
-                    emb_vals.append(random_init((n_d,))*(0.001 if word != oov else 0.0))
+                    emb_vals.append(random_init((n_d,))*0.001)
+                    lst_words.append(word)
 
             emb_vals = np.vstack(emb_vals).astype(theano.config.floatX)
             self.vocab_map = vocab_map
+            self.lst_words = lst_words
         else:
+            lst_words = [ ]
             vocab_map = {}
             for word in vocab:
                 if word not in vocab_map:
                     vocab_map[word] = len(vocab_map)
+                    lst_words.append(word)
 
+            self.lst_words = lst_words
             self.vocab_map = vocab_map
             emb_vals = random_init((len(self.vocab_map), n_d))
             self.init_end = -1
@@ -265,7 +270,10 @@ class EmbeddingLayer(object):
 
         self.n_V = len(self.vocab_map)
         self.n_d = n_d
-        say("Vocabulary size: {}.\n".format(self.n_V))
+
+    def map_to_words(self, ids):
+        n_V, lst_words = self.n_V, self.lst_words
+        return [ lst_words[i] if i < n_V else "<err>" for i in ids ]
 
     def map_to_ids(self, words, filter_oov=False):
         '''

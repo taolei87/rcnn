@@ -72,8 +72,12 @@ def create_idf_weights(corpus_path, embedding_layer):
 def map_corpus(raw_corpus, embedding_layer, max_len=100):
     ids_corpus = { }
     for id, pair in raw_corpus.iteritems():
-        ids_corpus[id] = (embedding_layer.map_to_ids(pair[0], filter_oov=True),
+        item = (embedding_layer.map_to_ids(pair[0], filter_oov=True),
                           embedding_layer.map_to_ids(pair[1], filter_oov=True)[:max_len])
+        #if len(item[0]) == 0:
+        #    say("empty title after mapping to IDs. Doc No.{}\n".format(id))
+        #    continue
+        ids_corpus[id] = item	
     return ids_corpus
 
 def read_annotations(path, K_neg=20, prune_pos_cnt=10):

@@ -12,6 +12,8 @@ import theano.tensor as T
 from utils import load_embedding_iterator
 from nn import get_activation_by_name, create_optimization_updates
 from nn import Layer, EmbeddingLayer, LSTM, GRU, RCNN, Dropout, apply_dropout
+from nn.evaluation import evaluate_average
+
 import myio
 from myio import say
 from evaluation import Evaluation
@@ -128,7 +130,8 @@ class Model:
                         idgs.ravel()
                     )
         nll = nll.reshape(idgs.shape)
-        mask = T.cast(T.neq(idgs, self.padding_id), theano.config.floatX)
+        self.nll = nll
+        self.mask = mask = T.cast(T.neq(idgs, self.padding_id), theano.config.floatX)
         nll = T.sum(nll*mask, axis=0)
 
         #layers.append(embedding_layer)
@@ -151,7 +154,7 @@ class Model:
         self.loss = T.mean(nll)
         self.cost = self.loss + l2_reg
 
-    def train(self, ids_corpus, train, dev=None, test=None):
+    def train(self, ids_corpus, train, dev=None, test=None, heldout=None):
         args = self.args
         dropout_prob = np.float64(args.dropout).astype(theano.config.floatX)
         batch_size = args.batch_size
@@ -180,6 +183,11 @@ class Model:
                 outputs = self.scores
             )
 
+        nll_func = theano.function(
+                inputs = [ self.idxs, self.idys ],
+                outputs = [ self.nll, self.mask ]
+            )
+
         say("\tp_norm: {}\n".format(
                 self.get_pnorm_stat()
             ))
@@ -191,11 +199,13 @@ class Model:
         best_dev = -1
         dev_MAP = dev_MRR = dev_P1 = dev_P5 = 0
         test_MAP = test_MRR = test_P1 = test_P5 = 0
+        heldout_PPL = -1
+
         start_time = 0
         max_epoch = args.max_epoch
         for epoch in xrange(max_epoch):
             unchanged += 1
-            if unchanged > 10: break
+            if unchanged > 8: break
 
             start_time = time.time()
 
@@ -234,6 +244,8 @@ class Model:
                         dev_MAP, dev_MRR, dev_P1, dev_P5 = self.evaluate(dev, eval_func)
                     if test is not None:
                         test_MAP, test_MRR, test_P1, test_P5 = self.evaluate(test, eval_func)
+                    if heldout is not None:
+                        heldout_PPL = self.evaluate_perplexity(heldout, nll_func)
 
                     if dev_MRR > best_dev:
                         unchanged = 0
@@ -252,13 +264,14 @@ class Model:
 
                     say("\r\n\n")
                     say( ( "Epoch {}\tcost={:.3f}\tloss={:.3f} {:.3f}\t" \
-                        +"\tMRR={:.2f},{:.2f}\t|g|={:.3f}\t[{:.3f}m]\n" ).format(
+                        +"\tMRR={:.2f},{:.2f}\tPPL={:.1f}\t|g|={:.3f}\t[{:.3f}m]\n" ).format(
                             epoch,
                             train_cost / (i+1),
                             train_loss / (i+1),
                             train_loss2 / (i+1),
                             dev_MRR,
                             best_dev,
+                            heldout_PPL,
                             float(grad_norm),
                             (time.time()-start_time)/60.0
                     ))
@@ -304,7 +317,7 @@ class Model:
         for t, b, labels in data:
             idts, idbs = myio.create_one_batch(t, b, self.padding_id)
             scores = eval_func(idts)
-            assert len(scores) == len(labels)
+            #assert len(scores) == len(labels)
             ranks = (-scores).argsort()
             ranked_labels = labels[ranks]
             res.append(ranked_labels)
@@ -314,6 +327,20 @@ class Model:
         P1 = e.Precision(1)*100
         P5 = e.Precision(5)*100
         return MAP, MRR, P1, P5
+
+    def evaluate_perplexity(self, data, nll_func):
+        nll_preds = [ ]
+        nll_masks = [ ]
+        for idbs, idts in data:
+            nll, mask = nll_func(idbs, idts)
+            assert nll.shape == mask.shape
+            nll_preds.append(nll)
+            nll_masks.append(mask)
+        avg_nll = evaluate_average(
+                    predictions = nll_preds,
+                    masks = nll_masks
+                )
+        return np.exp(avg_nll)
 
     def save_model(self, path):
         args = self.args
@@ -346,6 +373,8 @@ def main(args):
             len(raw_corpus)
         ))
     padding_id = embedding_layer.vocab_map["<padding>"]
+    bos_id = embedding_layer.vocab_map["<s>"]
+    eos_id = embedding_layer.vocab_map["</s>"]
 
     if args.reweight:
         weights = myio.create_idf_weights(args.corpus, embedding_layer)
@@ -356,6 +385,17 @@ def main(args):
     if args.test:
         test = myio.read_annotations(args.test, K_neg=20, prune_pos_cnt=-1)
         test = myio.create_eval_batches(ids_corpus, test, padding_id)
+
+    if args.heldout:
+        with open(args.heldout) as fin:
+            heldout_ids = fin.read().split()
+        heldout_corpus = dict((id, ids_corpus[id]) for id in heldout_ids if id in ids_corpus)
+        train_corpus = dict((id, ids_corpus[id]) for id in ids_corpus
+                                                if id not in heldout_corpus)
+        heldout = myio.create_batches(heldout_corpus, [ ], args.batch_size,
+                    padding_id, bos_id, eos_id, auto_encode=True)
+        heldout = [ myio.create_one_batch(b1, t2, padding_id) for t1, b1, t2 in heldout ]
+        say("heldout examples={}\n".format(len(heldout_corpus)))
 
     if args.train:
         model = Model(args, embedding_layer,
@@ -370,10 +410,11 @@ def main(args):
 
         model.ready()
         model.train(
-                ids_corpus,
+                ids_corpus if not args.heldout else train_corpus,
                 train,
                 dev if args.dev else None,
-                test if args.test else None
+                test if args.test else None,
+                heldout if args.heldout else None
             )
 
 if __name__ == "__main__":
@@ -390,6 +431,10 @@ if __name__ == "__main__":
             default = ""
         )
     argparser.add_argument("--dev",
+            type = str,
+            default = ""
+        )
+    argparser.add_argument("--heldout",
             type = str,
             default = ""
         )

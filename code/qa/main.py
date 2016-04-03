@@ -95,8 +95,8 @@ class Model:
         xb = xb.reshape((idbs.shape[0], idbs.shape[1], n_e))
         xb = apply_dropout(xb, dropout)
 
-        prev_ht = xt
-        prev_hb = xb
+        prev_ht = self.xt = xt
+        prev_hb = self.xb = xb
         for i in range(depth):
             # len*batch*n_d
             ht = layers[i].forward_all(prev_ht)
@@ -109,6 +109,9 @@ class Model:
             ht = self.normalize_3d(ht)
             hb = self.normalize_3d(hb)
             say("h_title dtype: {}\n".format(ht.dtype))
+
+        self.ht = ht
+        self.hb = hb
 
         # average over length, ignore paddings
         # batch * d
@@ -124,6 +127,7 @@ class Model:
         h_final = (ht+hb)*0.5
         h_final = apply_dropout(h_final, dropout)
         h_final = self.normalize_2d(h_final)
+        self.h_final = h_final
         say("h_final dtype: {}\n".format(ht.dtype))
 
         # For testing:
@@ -184,7 +188,8 @@ class Model:
 
         eval_func = theano.function(
                 inputs = [ self.idts, self.idbs ],
-                outputs = self.scores
+                outputs = self.scores,
+                on_unused_input='ignore'
             )
 
         say("\tp_norm: {}\n".format(
@@ -241,6 +246,8 @@ class Model:
                             [ "%.2f" % x for x in [ dev_MAP, dev_MRR, dev_P1, dev_P5 ] +
                                         [ test_MAP, test_MRR, test_P1, test_P5 ] ]
                         )
+                        if args.save_model:
+                            self.save_model(args.save_model)
 
                     dropout_p = np.float64(args.dropout).astype(
                                 theano.config.floatX)
@@ -316,6 +323,37 @@ class Model:
             #assert args.layer == data["layer_type"]
             for l, p in zip(self.layers, data["params"]):
                 l.params = p
+
+    def save_model(self, path):
+        if not path.endswith(".pkl.gz"):
+            path = path + (".gz" if path.endswith(".pkl") else ".pkl.gz")
+
+        args = self.args
+        params = [ x.params for x in self.layers ]
+        weights = self.weights
+        with gzip.open(path, "w") as fout:
+            pickle.dump(
+                {
+                    "args": args,
+                    "d"   : args.hidden_dim,
+                    "params": params,
+                    "weights": weights
+                },
+                fout,
+                protocol = pickle.HIGHEST_PROTOCOL
+            )
+
+    def load_model(self, path):
+        with gzip.open(path) as fin:
+            data = pickle.load(fin)
+        return data
+
+    def set_model(self, data):
+        self.args = data["args"]
+        self.weights = data["weights"]
+        self.ready()
+        for l, p in zip(self.layers, data["params"]):
+            l.params = p
 
 def main(args):
     raw_corpus = myio.read_corpus(args.corpus)
@@ -405,7 +443,7 @@ if __name__ == "__main__":
         )
     argparser.add_argument("--l2_reg",
             type = float,
-            default = 1e-7
+            default = 1e-5
         )
     argparser.add_argument("--activation", "-act",
             type = str,
@@ -466,6 +504,10 @@ if __name__ == "__main__":
     argparser.add_argument("--average",
             type = int,
             default = 0
+        )
+    argparser.add_argument("--save_model",
+            type = str,
+            default = ""
         )
     args = argparser.parse_args()
     print args

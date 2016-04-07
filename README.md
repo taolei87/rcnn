@@ -21,6 +21,8 @@ The directories [code/qa](/code/qa) and [code/pt](/code/pt) contain the implemen
 
 Datasets and and pre-trained word vectors are available at [this repo](https://github.com/taolei87/askubuntu).
 
+<br>
+
 #### 2. Sentiment Analysis / Document Classification
 
 The directory [code/sentiment](/code/sentiment) contains the implementation of the model described in paper [[2]](http://arxiv.org/abs/1508.04112).

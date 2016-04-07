@@ -2,9 +2,9 @@
 
 This repo contains Theano implementations of popular neural network components and optimization methods. Source code of the following papers are also available:
 
-  [1] [Semi-supervised Question Retrieval with Gated Convolutions](http://arxiv.org/abs/1512.05726). Lei et. al. NAACL 2016
+  [1] [Semi-supervised Question Retrieval with Gated Convolutions](http://arxiv.org/abs/1512.05726). NAACL 2016
 
-  [2] [Molding CNNs for text: non-linear, non-consecutive convolutions](http://arxiv.org/abs/1508.04112). Lei et. al. EMNLP 2015
+  [2] [Molding CNNs for text: non-linear, non-consecutive convolutions](http://arxiv.org/abs/1508.04112). EMNLP 2015
 
 #### Features
   - Basic modules including feedforward layer, dropout, word embedding, RNN, LSTM, GRU and CNN

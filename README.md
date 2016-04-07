@@ -12,6 +12,8 @@ This repo contains Theano implementations of popular neural network components a
   - Advanced modules from recent papers such as attention and gated convolution.
   - Transparent to use GPU
 
+<br>
+
 #### Projects
 
 ##### 1. Neural Question Retrieval for Community-based QA

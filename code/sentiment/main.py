@@ -270,7 +270,7 @@ class Model:
         say(str([ "%.2f" % np.linalg.norm(x.get_value(borrow=True)) for x in self.params ])+"\n")
         for epoch in xrange(args.max_epochs):
             unchanged += 1
-            if unchanged > 30: return
+            if unchanged > 20: return
             train_loss = 0.0
 
             random.shuffle(perm)

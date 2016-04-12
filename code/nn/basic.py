@@ -114,7 +114,7 @@ class Layer(object):
         else:
             W_vals = random_init((n_in,n_out))
             if activation == softmax:
-                W_vals *= 0.001
+                W_vals *= 0.00
             if activation == ReLU:
                 b_vals = np.ones(n_out, dtype=theano.config.floatX) * 0.01
             else:
@@ -235,7 +235,7 @@ class EmbeddingLayer(object):
             for word in vocab:
                 if word not in vocab_map:
                     vocab_map[word] = len(vocab_map)
-                    emb_vals.append(random_init((n_d,))*0.001)
+                    emb_vals.append(random_init((n_d,))*(0.001 if word != oov else 0.0))
                     lst_words.append(word)
 
             emb_vals = np.vstack(emb_vals).astype(theano.config.floatX)

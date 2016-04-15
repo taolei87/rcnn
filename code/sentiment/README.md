@@ -1,6 +1,6 @@
 #### Sentiment analysis (and other sequence classification task)
 
-This directory contains the re-factored implementation of the non-consecutive CNN model (StrCNN), originally at [[1]](https://github.com/taolei87/text_convnet). The code is now more modular, and I add an option to choose layer type among StrCNN, its adaptive version [RCNN](http://arxiv.org/pdf/1512.05726v2.pdf).
+This directory contains the re-factored implementation of the non-consecutive CNN model (StrCNN), originally at [[1]](https://github.com/taolei87/text_convnet). The code is now more modular, and I add an option to choose layer type among StrCNN, its adaptive version [RCNN](http://arxiv.org/pdf/1512.05726v2.pdf) or LSTM.
 
 ##### Data
 The data for sentiment analysis can be downloaded at the [orignal repo](https://github.com/taolei87/text_convnet).

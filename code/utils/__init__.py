@@ -4,7 +4,7 @@ import gzip
 
 import numpy as np
 
-def say(s, stream=sys.stderr):
+def say(s, stream=sys.stdout):
     stream.write("{}".format(s))
     stream.flush()
 

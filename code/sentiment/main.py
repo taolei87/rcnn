@@ -188,7 +188,7 @@ class Model:
 
         with gzip.open(path, "wb") as fout:
             pickle.dump(
-                ([ x.get_value() for x in self.params ], args),
+                ([ x.get_value() for x in self.params ], args, self.nclasses),
                 fout,
                 protocol = pickle.HIGHEST_PROTOCOL
             )
@@ -201,11 +201,11 @@ class Model:
                 path += ".pkl.gz"
 
         with gzip.open(path, "rb") as fin:
-            param_values, args = pickle.load(fin)
+            param_values, args, nclasses = pickle.load(fin)
 
-        assert self.args.layer.lower() == args.layer.lower()
-        assert self.args.depth == args.depth
-        assert self.args.hidden_dim == args.hidden_dim
+        self.args = args
+        self.nclasses = nclasses
+        self.ready()
         for x,v in zip(self.params, param_values):
             x.set_value(v)
 
@@ -270,7 +270,7 @@ class Model:
         say(str([ "%.2f" % np.linalg.norm(x.get_value(borrow=True)) for x in self.params ])+"\n")
         for epoch in xrange(args.max_epochs):
             unchanged += 1
-            if unchanged > 30: return
+            if unchanged > 20: return
             train_loss = 0.0
 
             random.shuffle(perm)
@@ -315,8 +315,8 @@ class Model:
                         if nowf_dev > best_dev:
                             unchanged = 0
                             best_dev = nowf_dev
-                            if args.model:
-                                self.save_model(args.model, args)
+                            if args.save:
+                                self.save_model(args.save, args)
 
                         say("\tdev accuracy=%.4f\tbest=%.4f\n" % (
                                 nowf_dev,
@@ -335,6 +335,36 @@ class Model:
                     self.dropout.set_value(dropout_prob)
 
                     start_time = time.time()
+
+    def evaluate_batches(self, batches_x, batches_y, eval_function):
+        preds = [ eval_function(x) for x in batches_x ]
+        return self.eval_accuracy(preds, batches_y)
+
+    def evaluate_set(self, data_x, data_y):
+
+        args = self.args
+
+        # compile prediction function
+        eval_acc = theano.function(
+             inputs = [self.x],
+             outputs = self.pred,
+             allow_input_downcast = True
+        )
+
+        # create batches by grouping sentences of the same length together
+        batches_x, batches_y = create_batches(
+                    range(len(data_x)),
+                    data_x,
+                    data_y,
+                    args.batch
+            )
+
+        # evaluate on the data set
+        dropout_prob = np.float64(args.dropout_rate).astype(theano.config.floatX)
+        self.dropout.set_value(0.0)
+        accuracy = self.evaluate_batches(batches_x, batches_y, eval_acc)
+        self.dropout.set_value(dropout_prob)
+        return accuracy
 
 
 def main(args):
@@ -375,6 +405,17 @@ def main(args):
                 (test_x, test_y) if args.test else None,
             )
 
+    if args.load and args.test and not args.train:
+        # model.args and model.nclasses will be loaded from file
+        model = Model(
+                    args = None,
+                    embedding_layer = embedding_layer,
+                    nclasses = -1
+            )
+        model.load_model(args.load)
+        accuracy = model.evaluate_set(test_x, test_y)
+        print accuracy
+
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(sys.argv[0])
@@ -400,16 +441,17 @@ if __name__ == "__main__":
         )
     argparser.add_argument("--decay",
             type = float,
-            default = 0.3
+            default = 0.5,
+            help = "the decay factor of StrCNN layer"
         )
     argparser.add_argument("--learning",
             type = str,
-            default = "adagrad",
-            help = "learning method (sgd, adagrad, ...)"
+            default = "adam",
+            help = "learning method (sgd, adagrad, adam, ...)"
         )
     argparser.add_argument("--learning_rate",
             type = float,
-            default = "0.01",
+            default = "0.001",
             help = "learning rate"
         )
     argparser.add_argument("--max_epochs",
@@ -424,7 +466,7 @@ if __name__ == "__main__":
         )
     argparser.add_argument("--dropout_rate",
             type = float,
-            default = 0.0,
+            default = 0.3,
             help = "dropout probability"
         )
     argparser.add_argument("--l2_reg",
@@ -437,41 +479,42 @@ if __name__ == "__main__":
         )
     argparser.add_argument("--batch",
             type = int,
-            default = 15,
+            default = 16,
             help = "mini-batch size"
         )
     argparser.add_argument("--depth",
             type = int,
-            default = 3,
+            default = 2,
             help = "number of feature extraction layers (min:1)"
         )
     argparser.add_argument("--order",
             type = int,
-            default = 3,
-            help = "when the order is k, we use up tp k-grams (k=1,2,3)"
+            default = 2,
+            help = "when the order is k, we use up tp k-grams"
         )
     argparser.add_argument("--act",
             type = str,
             default = "relu",
-            help = "activation function (none, relu, tanh)"
+            help = "activation function (none, relu, tanh, etc.)"
         )
     argparser.add_argument("--layer",
             type = str,
-            default = "strcnn"
+            default = "strcnn",
+            help = "type of neural net (LSTM, RCNN, StrCNN)"
         )
     argparser.add_argument("--mode",
             type = int,
             default = 1
         )
-    argparser.add_argument("--seed",
-            type = int,
-            default = -1,
-            help = "random seed of the model"
-        )
-    argparser.add_argument("--model",
+    argparser.add_argument("--save",
             type = str,
             default = "",
             help = "save model to this file"
+        )
+    argparser.add_argument("--load",
+            type = str,
+            default = "",
+            help = "load model from this file"
         )
     argparser.add_argument("--pooling",
             type = int,

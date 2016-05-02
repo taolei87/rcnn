@@ -25,7 +25,7 @@ def create_optimization_updates(
                 cost, params, method="sgd",
                 max_norm=5, updates=None, gradients=None,
                 lr=0.01, eps=1e-8, rho=0.95,
-                beta1=0.9, beta2=0.999):
+                beta1=0.9, beta2=0.999, momentum=0.0):
 
     lr = theano.shared(np.float64(lr).astype(theano.config.floatX))
     eps = np.float64(eps).astype(theano.config.floatX)
@@ -55,16 +55,18 @@ def create_optimization_updates(
     if updates is None:
         updates = OrderedDict()
 
-    gsums = create_accumulators(params) if method != "sgd" else None
+    gsums = create_accumulators(params) if method != "sgd" or momentum > 0.0 else None
     xsums = create_accumulators(params) if method != "sgd" and method != "adagrad" else None
 
-    if method == "sgd":
+    if method == "sgd" and momentum == 0:
         for p, g in zip(params, gparams):
             if is_subtensor_op(p):
                 origin, _ = get_subtensor_op_inputs(p)
                 updates[origin] = T.inc_subtensor(p, - lr*g)
             else:
                 updates[p] = p - lr*g
+    elif method == "sgd" and momentum > 0:
+        create_momentum_updates(updates, params, gparams, gsums, lr, momentum)
 
     elif method == "adagrad":
         create_adagrad_updates(updates, params, gparams, gsums, lr, eps)
@@ -121,6 +123,21 @@ def create_accumulators(params):
         accums.append(acc)
     return accums
 
+def create_momentum_updates(updates, params, gparams, gsums, lr, momentum):
+    for p, g, acc in zip(params, gparams, gsums):
+        if is_subtensor_op(p):
+            origin, indexes = get_subtensor_op_inputs(p)
+            #acc_slices = acc[indexes]
+            acc_slices = get_similar_subtensor(acc, indexes, p)
+            new_acc = acc_slices*momentum + g
+            updates[acc] = T.set_subtensor(acc_slices, new_acc)
+            updates[origin] = T.inc_subtensor(p, \
+                    - lr * new_acc)
+        else:
+            new_acc = acc*momentum + g
+            updates[acc] = new_acc
+            updates[p] = p - lr * new_acc
+
 def create_adagrad_updates(updates, params, gparams, gsums, lr, eps):
     for p, g, acc in zip(params, gparams, gsums):
         if is_subtensor_op(p):
@@ -135,7 +152,6 @@ def create_adagrad_updates(updates, params, gparams, gsums, lr, eps):
             new_acc = acc + g**2
             updates[acc] = new_acc
             updates[p] = p - lr * (g / T.sqrt(new_acc + eps))
-
 
 def create_adadelta_updates(updates, params, gparams, gsums, xsums,\
                                 lr, eps, rho):

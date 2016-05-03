@@ -20,18 +20,22 @@ from theano.sandbox.cuda.basic_ops import HostFromGpu
 from theano.sandbox.cuda.var import CudaNdarraySharedVariable
 from theano.printing import debugprint
 
+from .initialization import default_mrng
 
 def create_optimization_updates(
                 cost, params, method="sgd",
                 max_norm=5, updates=None, gradients=None,
-                lr=0.01, eps=1e-8, rho=0.95,
+                lr=0.01, eps=1e-8, rho=0.95, gamma=0.99,
                 beta1=0.9, beta2=0.999, momentum=0.0):
 
+    _momentum = momentum
     lr = theano.shared(np.float64(lr).astype(theano.config.floatX))
     eps = np.float64(eps).astype(theano.config.floatX)
     rho = theano.shared(np.float64(rho).astype(theano.config.floatX))
     beta1 = theano.shared(np.float64(beta1).astype(theano.config.floatX))
     beta2 = theano.shared(np.float64(beta2).astype(theano.config.floatX))
+    momentum = theano.shared(np.float64(momentum).astype(theano.config.floatX))
+    gamma = theano.shared(np.float64(gamma).astype(theano.config.floatX))
 
     gparams = T.grad(cost, params) if gradients is None else gradients
 
@@ -55,18 +59,12 @@ def create_optimization_updates(
     if updates is None:
         updates = OrderedDict()
 
-    gsums = create_accumulators(params) if method != "sgd" or momentum > 0.0 else None
+    gsums = create_accumulators(params) if method != "sgd" or _momentum > 0.0 else \
+                [ None for p in params ]
     xsums = create_accumulators(params) if method != "sgd" and method != "adagrad" else None
 
-    if method == "sgd" and momentum == 0:
-        for p, g in zip(params, gparams):
-            if is_subtensor_op(p):
-                origin, _ = get_subtensor_op_inputs(p)
-                updates[origin] = T.inc_subtensor(p, - lr*g)
-            else:
-                updates[p] = p - lr*g
-    elif method == "sgd" and momentum > 0:
-        create_momentum_updates(updates, params, gparams, gsums, lr, momentum)
+    if method == "sgd":
+        create_sgd_updates(updates, params, gparams, gsums, lr, momentum)
 
     elif method == "adagrad":
         create_adagrad_updates(updates, params, gparams, gsums, lr, eps)
@@ -76,6 +74,9 @@ def create_optimization_updates(
 
     elif method == "adam":
         create_adam_updates(updates, params, gparams, gsums, xsums, lr, eps, beta1, beta2)
+
+    elif method == "esgd":
+        create_esgd_updates(updates, params, gparams, gsums, xsums, lr, eps, gamma, momentum)
 
     else:
         raise Exception("Unknown optim method: {}\n".format(method))
@@ -123,19 +124,24 @@ def create_accumulators(params):
         accums.append(acc)
     return accums
 
-def create_momentum_updates(updates, params, gparams, gsums, lr, momentum):
+def create_sgd_updates(updates, params, gparams, gsums, lr, momentum):
+    has_momentum = momentum.get_value() > 0.0
     for p, g, acc in zip(params, gparams, gsums):
         if is_subtensor_op(p):
             origin, indexes = get_subtensor_op_inputs(p)
-            #acc_slices = acc[indexes]
-            acc_slices = get_similar_subtensor(acc, indexes, p)
-            new_acc = acc_slices*momentum + g
-            updates[acc] = T.set_subtensor(acc_slices, new_acc)
-            updates[origin] = T.inc_subtensor(p, \
-                    - lr * new_acc)
+            if has_momentum:
+                acc_slices = get_similar_subtensor(acc, indexes, p)
+                new_acc = acc_slices*momentum + g
+                updates[acc] = T.set_subtensor(acc_slices, new_acc)
+            else:
+                new_acc = g
+            updates[origin] = T.inc_subtensor(p, - lr * new_acc)
         else:
-            new_acc = acc*momentum + g
-            updates[acc] = new_acc
+            if has_momentum:
+                new_acc = acc*momentum + g
+                updates[acc] = new_acc
+            else:
+                new_acc = g
             updates[p] = p - lr * new_acc
 
 def create_adagrad_updates(updates, params, gparams, gsums, lr, eps):
@@ -152,6 +158,8 @@ def create_adagrad_updates(updates, params, gparams, gsums, lr, eps):
             new_acc = acc + g**2
             updates[acc] = new_acc
             updates[p] = p - lr * (g / T.sqrt(new_acc + eps))
+            #updates[p] = p - lr * (g / (T.sqrt(new_acc) + eps))
+            # which one to use?
 
 def create_adadelta_updates(updates, params, gparams, gsums, xsums,\
                                 lr, eps, rho):
@@ -201,3 +209,26 @@ def create_adam_updates(updates, params, gparams, gsums, xsums, \
             updates[p] = p - lr_t*g_t
     updates[i] = i_t
 
+def create_esgd_updates(updates, params, gparams, gsums, xsums, lr, eps, gamma, momentum):
+    has_momentum = momentum.get_value() > 0.0
+    samples = [ default_mrng.normal(size=p.shape, avg=0, std=1,
+                    dtype=theano.config.floatX) for p in params ]
+    HVs = T.Lop(gparams, params, samples)
+
+    i = theano.shared(np.float64(0.0).astype(theano.config.floatX))
+    i_t = i + 1.0
+    omg_t = 1.0 - gamma**i_t
+    for p, g, m, D, Hv in zip(params, gparams, gsums, xsums, HVs):
+        if is_subtensor_op(p):
+            raise Exception("ESGD subtensor update not implemented!")
+        else:
+            D_t = D * gamma + T.sqr(Hv) * (1.0-gamma)
+            if has_momentum:
+                m_t = m*momentum + g
+                updates[m] = m_t
+            else:
+                m_t = g
+            g_t = m_t / ( T.sqrt(D_t/omg_t) + eps )
+            updates[D] = D_t
+            updates[p] = p - lr*g_t
+    updates[i] = i_t

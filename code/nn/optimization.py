@@ -25,7 +25,7 @@ from .initialization import default_mrng
 def create_optimization_updates(
                 cost, params, method="sgd",
                 max_norm=5, updates=None, gradients=None,
-                lr=0.01, eps=1e-8, rho=0.95, gamma=0.99,
+                lr=0.01, eps=1e-8, rho=0.95, gamma=0.9,
                 beta1=0.9, beta2=0.999, momentum=0.0):
 
     _momentum = momentum
@@ -196,14 +196,14 @@ def create_adam_updates(updates, params, gparams, gsums, xsums, \
             v_sub = v[indexes]
             m_t = beta1*m_sub + (1.0-beta1)*g
             v_t = beta2*v_sub + (1.0-beta2)*T.sqr(g)
-            g_t = m_t / (T.sqrt(v_t) + eps)
+            g_t = m_t / (T.sqrt(v_t + eps))
             updates[m] = T.set_subtensor(m_sub, m_t)
             updates[v] = T.set_subtensor(v_sub, v_t)
             updates[origin] = T.inc_subtensor(p, -lr_t*g_t)
         else:
             m_t = beta1*m + (1.0-beta1)*g
             v_t = beta2*v + (1.0-beta2)*T.sqr(g)
-            g_t = m_t / (T.sqrt(v_t) + eps)
+            g_t = m_t / (T.sqrt(v_t + eps))
             updates[m] = m_t
             updates[v] = v_t
             updates[p] = p - lr_t*g_t
@@ -228,7 +228,8 @@ def create_esgd_updates(updates, params, gparams, gsums, xsums, lr, eps, gamma, 
                 updates[m] = m_t
             else:
                 m_t = g
-            g_t = m_t / ( T.sqrt(D_t/omg_t) + eps )
+            g_t = m_t / ( T.sqrt(D_t/omg_t + eps) )
+            #g_t = m_t / ( T.sqrt(D_t + eps) )
             updates[D] = D_t
             updates[p] = p - lr*g_t
     updates[i] = i_t

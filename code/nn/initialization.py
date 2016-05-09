@@ -9,6 +9,7 @@ import random
 import numpy as np
 import theano
 import theano.tensor as T
+from theano.sandbox.rng_mrg import MRG_RandomStreams
 
 '''
     whether to use Xavier initialization, as described in
@@ -23,7 +24,7 @@ USE_XAVIER_INIT = False
 #random.seed(5817)
 default_rng = np.random.RandomState(random.randint(0,9999))
 default_srng = T.shared_randomstreams.RandomStreams(default_rng.randint(9999))
-
+default_mrng = MRG_RandomStreams(default_rng.randint(9999))
 
 '''
     Activation functions

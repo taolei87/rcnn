@@ -25,17 +25,20 @@ from .initialization import default_mrng
 def create_optimization_updates(
                 cost, params, method="sgd",
                 max_norm=5, updates=None, gradients=None,
-                lr=0.01, eps=1e-8, rho=0.95, gamma=0.9,
+                lr=0.01, eps=None, rho=0.99, gamma=0.999,
                 beta1=0.9, beta2=0.999, momentum=0.0):
 
     _momentum = momentum
     lr = theano.shared(np.float64(lr).astype(theano.config.floatX))
-    eps = np.float64(eps).astype(theano.config.floatX)
     rho = theano.shared(np.float64(rho).astype(theano.config.floatX))
     beta1 = theano.shared(np.float64(beta1).astype(theano.config.floatX))
     beta2 = theano.shared(np.float64(beta2).astype(theano.config.floatX))
     momentum = theano.shared(np.float64(momentum).astype(theano.config.floatX))
     gamma = theano.shared(np.float64(gamma).astype(theano.config.floatX))
+
+    if eps is None:
+        eps = 1e-8 if method.lower() != "esgd" else 1e-4
+    eps = np.float64(eps).astype(theano.config.floatX)
 
     gparams = T.grad(cost, params) if gradients is None else gradients
 

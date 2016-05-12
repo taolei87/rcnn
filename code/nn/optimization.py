@@ -199,14 +199,14 @@ def create_adam_updates(updates, params, gparams, gsums, xsums, \
             v_sub = v[indexes]
             m_t = beta1*m_sub + (1.0-beta1)*g
             v_t = beta2*v_sub + (1.0-beta2)*T.sqr(g)
-            g_t = m_t / (T.sqrt(v_t + eps))
+            g_t = m_t / (T.sqrt(v_t) + eps)
             updates[m] = T.set_subtensor(m_sub, m_t)
             updates[v] = T.set_subtensor(v_sub, v_t)
             updates[origin] = T.inc_subtensor(p, -lr_t*g_t)
         else:
             m_t = beta1*m + (1.0-beta1)*g
             v_t = beta2*v + (1.0-beta2)*T.sqr(g)
-            g_t = m_t / (T.sqrt(v_t + eps))
+            g_t = m_t / (T.sqrt(v_t) + eps)
             updates[m] = m_t
             updates[v] = v_t
             updates[p] = p - lr_t*g_t

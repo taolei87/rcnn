@@ -23,8 +23,9 @@ USE_XAVIER_INIT = False
 '''
 #random.seed(5817)
 default_rng = np.random.RandomState(random.randint(0,9999))
-default_srng = T.shared_randomstreams.RandomStreams(default_rng.randint(9999))
+#default_srng = T.shared_randomstreams.RandomStreams(default_rng.randint(9999))
 default_mrng = MRG_RandomStreams(default_rng.randint(9999))
+default_srng = default_mrng
 
 '''
     Activation functions

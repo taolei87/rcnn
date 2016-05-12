@@ -113,6 +113,7 @@ class LogisticModel(object):
                 beta2 = args.beta2,
                 momentum = args.momentum,
                 gamma = args.gamma,
+                eps = args.eps,
                 method = args.learning
             )[:3]
 
@@ -247,7 +248,7 @@ if __name__=="__main__":
         )
     argparser.add_argument("--l2_reg",
             type = float,
-            default = 0.0
+            default = 1e-6
         )
     argparser.add_argument("--rho",
             type = float,
@@ -268,6 +269,10 @@ if __name__=="__main__":
     argparser.add_argument("--gamma",
             type = float,
             default = 0.95
+        )
+    argparser.add_argument("--eps",
+            type = float,
+            default = 1e-8
         )
     argparser.add_argument("--batch",
             type = int,

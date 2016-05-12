@@ -58,11 +58,11 @@ class Dropout(object):
         return x*mask/d
 
 
-def apply_dropout(x, dropout_prob, v2=False):
+def apply_dropout(x, dropout_prob, srng=None, v2=False):
     '''
         Apply dropout on x with the specified probability
     '''
-    return Dropout(dropout_prob, v2=v2).forward(x)
+    return Dropout(dropout_prob, srng=srng, v2=v2).forward(x)
 
 
 class Layer(object):

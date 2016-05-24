@@ -16,7 +16,7 @@ To apply the model on other task(s), you can create the training / evaluation da
 Each line represents an input instance that starts with the label ID, followed by the list of words in the sentence/document. The label ID has to be integer and the smallest ID should be 0. The ID and words are separated by whitespaces.
 
 ##### Usage
-  1. Clone the rcnn repo, and switch to “dev.0” branch
+  1. Clone the rcnn repo
   2. Use “export PYTHONPATH=/path/to/rcnn/code” to add the rcnn/code directory to Python library
   3. Run `python main.py --help` to see all running options
 

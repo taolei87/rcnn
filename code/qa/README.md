@@ -21,6 +21,7 @@ To specify Theano configs, run the code via ```THEANO_FLAGS='...' python main.py
 ```
 THEANO_FLAGS='device=gpu,floatX=float32'        # use GPU and 32-bit float
 python main.py --corpus path/to/corpus          # path to the corpus file
+      --embeddings /path/to/vectors             # path to load word vectors
       --train path/to/train                     # path to training file
       --dev path/to/dev        
       --test path/to/test      
@@ -28,11 +29,14 @@ python main.py --corpus path/to/corpus          # path to the corpus file
       -d 400                                    # hidden dimension
       --save_model model.pkl.gz                 # save trained model to this file
 ```
+The corpus, training/development/test files and the word vectors are available at the [data repo](https://github.com/taolei87/askubuntu). 
+
 The above example trains a model from scratch.
 To fine tune a model that is pre-trained using unlabeled text (see [code/pt](code/pt) directory for more information), use the ```--load_pretrain``` option:
 ```
 THEANO_FLAGS='device=gpu,floatX=float32'        
-python main.py --corpus path/to/corpus          
+python main.py --corpus path/to/corpus
+      --embeddings /path/to/vectors
       --train path/to/train                    
       --dev path/to/dev        
       --test path/to/test      

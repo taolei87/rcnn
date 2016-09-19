@@ -1,7 +1,7 @@
 '''
     This file contains implementations of various NN components, including
       -- Dropout
-      -- Feedforward layer (with customizable activations)
+      -- Feedforward layer (with custom activations)
       -- RNN (with customizable activations)
       -- LSTM
       -- GRU
@@ -114,7 +114,7 @@ class Layer(object):
         else:
             W_vals = random_init((n_in,n_out))
             if activation == softmax:
-                W_vals *= 0.00
+                W_vals *= 0.001
             if activation == ReLU:
                 b_vals = np.ones(n_out, dtype=theano.config.floatX) * 0.01
             else:

@@ -22,12 +22,10 @@ This repo contains Theano implementations of popular neural network components a
 
 The directories [code/qa](/code/qa) and [code/pt](/code/pt) contain the implementation of the model described in paper [[2]](http://arxiv.org/abs/1512.05726). Datasets and and pre-trained word vectors are available at [here](https://github.com/taolei87/askubuntu).
 
-<br>
 ###### 2. Sentiment analysis / document classification
 
 The directory [code/sentiment](/code/sentiment) contains the implementation of the model described in paper [[1]](http://arxiv.org/abs/1508.04112). Datasets and and pre-trained word vectors are available at [here](https://github.com/taolei87/text_convnet).
 
-<br>
 ###### 3. Rationalizing neural predictions
 
 The directory [code/rationale](/code/rationale) contains the implementation of the model described in paper [[3]](https://people.csail.mit.edu/taolei/papers/emnlp16_rationale.pdf). More info will be added later.

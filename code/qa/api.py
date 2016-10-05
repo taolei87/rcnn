@@ -6,6 +6,7 @@ import theano
 import myio
 from myio import say
 from main import Model
+from utils import load_embedding_iterator
 
 class QRAPI:
 
@@ -58,7 +59,7 @@ class QRAPI:
             lst_questions.append(
                     emb.map_to_ids(q, filter_oov=True)
                 )
-        batch = myio.create_one_batch(lst_questions,
+        batch, _ = myio.create_one_batch(lst_questions,
                     lst_questions,
                     padding_id,
                     not args.average

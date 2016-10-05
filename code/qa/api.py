@@ -51,8 +51,10 @@ class QRAPI:
         if isinstance(query, str) or isinstance(query, unicode):
             query = json.loads(query)
 
-        lst_questions = [ emb.map_to_ids(query["query"], filter_oov=True) ]
+        p = query["query"].strip().split()
+        lst_questions = [ emb.map_to_ids(p, filter_oov=True) ]
         for q in query["candidates"]:
+            q = q.strip().split()
             lst_questions.append(
                     emb.map_to_ids(q, filter_oov=True)
                 )

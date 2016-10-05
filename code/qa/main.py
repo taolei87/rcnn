@@ -350,7 +350,7 @@ class Model:
 
     def set_model(self, data):
         self.args = data["args"]
-        self.weights = data["weights"]
+        #self.weights = data["weights"]
         self.ready()
         for l, p in zip(self.layers, data["params"]):
             l.params = p

@@ -58,7 +58,7 @@ class Generator(object):
             layers.append(l)
 
         # len * batch
-        masks = T.cast(T.neq(x, padding_id), "int8")
+        masks = T.cast(T.neq(x, padding_id), theano.config.floatX)
 
         # (len*batch)*n_e
         embs = embedding_layer.forward(x.ravel())

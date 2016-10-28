@@ -1,8 +1,8 @@
-### Latest news
-[Learning rationales for neural predictions](/code/rationale)
-<p align="center">
-<img height =140 src="code/rationale/figures/example.png"> &nbsp; &nbsp; &nbsp;  &nbsp;  <img width=350 src="code/rationale/figures/model_framework.png">
+### Latest updates
+[Learning rationales for neural predictions](/code/rationale) <p align="center">
+<img height =140 src="code/rationale/figures/example.png"> &nbsp; &nbsp; &nbsp; &nbsp; <img width=350 src="code/rationale/figures/model_framework.png">
 </p>
+-------
 
 #### About this repo
 This repo contains Theano implementations of popular neural network components and optimization methods. Source code of the following papers are also available:

@@ -33,7 +33,7 @@ The directory [code/sentiment](/code/sentiment) contains the implementation of t
 
 ###### 3. Rationalizing neural predictions
 
-The directory [code/rationale](/code/rationale) contains the implementation of the model described in paper [[3]](https://people.csail.mit.edu/taolei/papers/emnlp16_rationale.pdf). More info will be added later.
+The directory [code/rationale](/code/rationale) contains the implementation of the model described in paper [[3]](https://people.csail.mit.edu/taolei/papers/emnlp16_rationale.pdf).
 
 -------
 

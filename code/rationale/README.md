@@ -22,3 +22,15 @@ We optimize two modular (neural) components, generator and encoder, to produce r
   - [example_rationales](example_rationales) contains rationales generated for the beer review data. 
   - [ubuntu](ubuntu) contains alternative implementation for the AskUbuntu data.
   - [medical](medical) contains alternative implementation for medical report classification. 
+
+### Data
+  - **Proudct reviews:** We provide subsets of reviews and pre-trained word embeddings at [here](http://people.csail.mit.edu/taolei/beer/). This should be sufficient for producing our results. Please contact the author of the dataset, [Prof. McAuley](http://cseweb.ucsd.edu/~jmcauley/) for the full set (1.5 million reviews).   
+  - **AskUbuntu data:** AskUbuntu question data is available in [this repo](https://github.com/taolei87/askubuntu).
+  - **Pathology data:** This data is not available due to patients' privacy. We only provide the code and example snapshot at [/medical directory](medical)
+  
+**Important Note:** all data is for research-purpose only.
+
+### To-do
+  - [ ] documentation of the code
+  - [ ] example usage of the code
+  - [ ] put trained models in the repo??

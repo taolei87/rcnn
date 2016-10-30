@@ -1,5 +1,5 @@
 ### Latest updates
-[Learning rationales for neural predictions](/code/rationale) <p align="center">
+Check [code/rationale](/code/rationale) for the project of learning rationales for neural prediction:  <p align="center">
 <img height =140 src="code/rationale/figures/example.png"> &nbsp; &nbsp; &nbsp; &nbsp; <img width=350 src="code/rationale/figures/model_framework.png">
 </p>
 -------

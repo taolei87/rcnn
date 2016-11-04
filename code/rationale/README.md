@@ -44,7 +44,7 @@ Example run of beer review data:
 ```
 THEANO_FLAGS='device=gpu,floatX=float32'        # use GPU and 32-bit float
 python rationale.py                             # independent selection version
-      --embeddings /path/to/vectors             # path to load word vectors (required)
+      --embedding /path/to/vectors              # path to load word vectors (required)
       --train reviews.aspect0.train.txt.gz      # path to training set (required)
       --dev reviews.aspect0.heldout.txt.gz      # path to development set (required)        
       --load_rationale annotations.json         # path to rationale annotation for testing (required)

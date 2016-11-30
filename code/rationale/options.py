@@ -19,6 +19,11 @@ def load_arguments():
             default = "",
             help = "path to save model parameters"
         )
+    argparser.add_argument("--load_model",
+            type = str,
+            default = "",
+            help = "path to load model"
+        )
     argparser.add_argument("--train",
             type = str,
             default = "",

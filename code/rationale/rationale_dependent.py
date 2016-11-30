@@ -3,6 +3,7 @@ import os, sys, gzip
 import time
 import math
 import json
+import cPickle as pickle
 
 import numpy as np
 import theano
@@ -259,11 +260,12 @@ class Model(object):
         self.args = args
         self.embedding_layer = embedding_layer
         self.nclasses = nclasses
-        self.generator = Generator(args, embedding_layer, nclasses)
-        self.encoder = Encoder(args, embedding_layer, nclasses, self.generator)
 
 
     def ready(self):
+        args, embedding_layer, nclasses = self.args, self.embedding_layer, self.nclasses
+        self.generator = Generator(args, embedding_layer, nclasses)
+        self.encoder = Encoder(args, embedding_layer, nclasses, self.generator)
         self.generator.ready()
         self.encoder.ready()
         self.dropout = self.generator.dropout
@@ -271,6 +273,47 @@ class Model(object):
         self.y = self.encoder.y
         self.z = self.generator.z_pred
         self.params = self.encoder.params + self.generator.params
+
+
+    def save_model(self, path, args):
+        # append file suffix
+        if not path.endswith(".pkl.gz"):
+            if path.endswith(".pkl"):
+                path += ".gz"
+            else:
+                path += ".pkl.gz"
+
+        # output to path
+        with gzip.open(path, "wb") as fout:
+            pickle.dump(
+                ([ x.get_value() for x in self.encoder.params ],   # encoder
+                 [ x.get_value() for x in self.generator.params ], # generator
+                 self.nclasses,
+                 args                                 # training configuration
+                ),
+                fout,
+                protocol = pickle.HIGHEST_PROTOCOL
+            )
+
+
+    def load_model(self, path):
+        if not os.path.exists(path):
+            if path.endswith(".pkl"):
+                path += ".gz"
+            else:
+                path += ".pkl.gz"
+
+        with gzip.open(path, "rb") as fin:
+            eparams, gparams, nclasses, args  = pickle.load(fin)
+
+        # construct model/network using saved configuration
+        self.args = args
+        self.nclasses = nclasses
+        self.ready()
+        for x,v in zip(self.encoder.params, eparams):
+            x.set_value(v)
+        for x,v in zip(self.generator.params, gparams):
+            x.set_value(v)
 
 
     def train(self, train, dev, test, rationale_data):
@@ -455,6 +498,9 @@ class Model(object):
                             self.dump_rationales(args.dump, valid_batches_x, valid_batches_y,
                                         get_loss_and_pred, sample_generator)
 
+                        if args.save_model:
+                            self.save_model(args.save_model, args)
+
                     say(("\tsampling devg={:.4f}  mseg={:.4f}  avg_diffg={:.4f}" +
                                 "  p[1]g={:.2f}  best_dev={:.4f}\n").format(
                         dev_obj,
@@ -598,6 +644,43 @@ def main():
                 None, #(test_x, test_y),
                 rationale_data if args.load_rationale else None
             )
+
+    if args.load_model and args.dev and not args.train:
+        model = Model(
+                    args = None,
+                    embedding_layer = embedding_layer,
+                    nclasses = -1
+                )
+        model.load_model(args.load_model)
+        say("model loaded successfully.\n")
+
+        # compile an evaluation function
+        eval_func = theano.function(
+                inputs = [ model.x, model.y ],
+                outputs = [ model.z, model.encoder.obj, model.encoder.loss,
+                                model.encoder.pred_diff ],
+                updates = model.generator.sample_updates
+            )
+
+        # compile a predictor function
+        pred_func = theano.function(
+                inputs = [ model.x ],
+                outputs = [ model.z, model.encoder.preds ],
+                updates = model.generator.sample_updates
+            )
+
+        # batching data
+        padding_id = embedding_layer.vocab_map["<padding>"]
+        dev_batches_x, dev_batches_y = myio.create_batches(
+                        dev_x, dev_y, args.batch, padding_id
+                    )
+
+        # disable dropout
+        model.dropout.set_value(0.0)
+        dev_obj, dev_loss, dev_diff, dev_p1 = model.evaluate_data(
+                dev_batches_x, dev_batches_y, eval_func, sampling=True)
+        say("{} {} {} {}\n".format(dev_obj, dev_loss, dev_diff, dev_p1))
+
 
 if __name__=="__main__":
     args = options.load_arguments()

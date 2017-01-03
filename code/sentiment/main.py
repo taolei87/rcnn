@@ -201,7 +201,11 @@ class Model:
                 path += ".pkl.gz"
 
         with gzip.open(path, "rb") as fin:
-            param_values, args, nclasses = pickle.load(fin)
+            return_obj = pickle.load(fin)
+            param_values = return_obj[0]
+            args = return_obj[1]
+            nclasses = return_obj[2]
+            #param_values, args, nclasses = pickle.load(fin)
 
         self.args = args
         self.nclasses = nclasses

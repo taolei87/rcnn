@@ -10,8 +10,9 @@ import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams
 from theano.compile.nanguardmode import NanGuardMode
 
-from nn import create_optimization_updates, get_activation_by_name, sigmoid, linear
+from nn import create_optimization_updates, get_activation_by_name, sigmoid, linear, tanh
 from nn import EmbeddingLayer, Layer, apply_dropout, default_rng
+from nn import create_shared, random_init
 from utils import say
 import myio
 import options

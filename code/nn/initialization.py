@@ -27,6 +27,9 @@ default_rng = np.random.RandomState(random.randint(0,9999))
 default_mrng = MRG_RandomStreams(default_rng.randint(9999))
 default_srng = default_mrng
 
+default_init_type = None
+default_init_scaling_factor = 1.0
+
 '''
     Activation functions
 '''
@@ -74,8 +77,14 @@ def set_default_rng_seed(seed):
 '''
 def random_init(size, rng=None, rng_type=None):
     if rng is None: rng = default_rng
+    if rng_type is None: rng_type = default_init_type
+
+    scaling_factor = default_init_scaling_factor or 1.0
     if rng_type is None:
-        #vals = rng.standard_normal(size)
+        scale = ((3.0/size[0])**0.5) * scaling_factor
+        vals = rng.uniform(low=-scale, high=scale, size=size)
+
+    elif rng_type == "0.05":  # init type used in previous versions
         vals = rng.uniform(low=-0.05, high=0.05, size=size)
 
     elif rng_type == "normal":

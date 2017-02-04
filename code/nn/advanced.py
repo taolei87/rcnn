@@ -22,6 +22,8 @@ import theano.tensor as T
 from .initialization import random_init, create_shared
 from .initialization import ReLU, tanh, linear, sigmoid
 from .basic import Layer, RecurrentLayer
+import initialization as init_module
+print init_module.default_init_type
 
 '''
     This class implements the non-consecutive, non-linear CNN model described in
@@ -401,20 +403,26 @@ class RCNN(Layer):
         ------
 
             order           : CNN feature width
-            has_outgate     : whether to add a output gate as in LSTM; this can be
+            has_highway     : whether to add highway connection; this can be
                               useful for language modeling
             mode            : 0 if non-linear filter; 1 if linear filter (default)
     '''
     def __init__(self, n_in, n_out, activation=tanh,
-            order=1, has_outgate=False, mode=1, clip_gradients=False):
+            order=1, has_highway=True, mode=3, clip_gradients=False):
 
         self.n_in = n_in
         self.n_out = n_out
         self.activation = activation
         self.order = order
         self.clip_gradients = clip_gradients
-        self.has_outgate = has_outgate
+        self.has_highway = has_highway
         self.mode = mode
+
+        #if not (mode&1):
+        #    tmp_init_type = init_module.default_init_type
+        #    init_module.default_init_type = "uniform"
+        #    scale = ((1.0/n_out)**(0.5/order))*1.0
+        #    #print scale
 
         internal_layers = self.internal_layers = [ ]
         for i in range(order):
@@ -422,13 +430,25 @@ class RCNN(Layer):
                     clip_gradients=clip_gradients)
             internal_layers.append(input_layer)
 
+        #if not (mode&1):
+        #    #print init_module.default_init_type
+        #    for layer in internal_layers:
+        #        for p in layer.params:
+        #            v = p.get_value(borrow=False)
+        #            #print np.max(v), np.min(v), np.var(v), np.mean(v)
+        #            p.set_value(v*scale)
+        #    init_module.default_init_type = tmp_init_type
+        #    #print init_module.default_init_type
+
         forget_gate = RecurrentLayer(n_in, n_out, sigmoid, clip_gradients)
+        #forget_gate = Layer(n_in, n_out, sigmoid, clip_gradients)
         internal_layers.append(forget_gate)
 
-        self.bias = create_shared(random_init((n_out,)), name="bias")
+        #self.bias = create_shared(random_init((n_out,)), name="bias")
 
-        if has_outgate:
-            self.out_gate = RecurrentLayer(n_in, n_out, sigmoid, clip_gradients)
+        if has_highway:
+            #self.out_gate = RecurrentLayer(n_in, n_out, sigmoid, clip_gradients)
+            self.out_gate = Layer(n_in, n_out, sigmoid, clip_gradients)
             self.internal_layers += [ self.out_gate ]
 
     '''
@@ -453,29 +473,43 @@ class RCNN(Layer):
         else:
             h_tm1 = hc[n_out*order:]
 
+        mode = self.mode
         forget_t = layers[order].forward(x, h_tm1)
+        #forget_t = layers[order].forward(x)
+        in_t = 1-forget_t if mode&2 else 1.0
         lst = [ ]
+        sum_c_t = 0
         for i in range(order):
             if hc.ndim > 1:
                 c_i_tm1 = hc[:, n_out*i:n_out*i+n_out]
             else:
                 c_i_tm1 = hc[n_out*i:n_out*i+n_out]
-            in_i_t = layers[i].forward(x)
+            wx_i_t = layers[i].forward(x)
+            term_1 = forget_t * c_i_tm1
             if i == 0:
-                c_i_t = forget_t * c_i_tm1 + (1-forget_t) * in_i_t
-            elif self.mode == 0:
-                c_i_t = forget_t * c_i_tm1 + (1-forget_t) * (in_i_t * c_im1_t)
+                term_2 = in_t * wx_i_t
+                term_3 = wx_i_t
+            elif mode&1:
+                term_2 = in_t * (wx_i_t + c_im1_tm1)
+                term_3 = wx_i_t + c_im1_tm1
             else:
-                c_i_t = forget_t * c_i_tm1 + (1-forget_t) * (in_i_t + c_im1_tm1)
+                term_2 = in_t * (wx_i_t * c_im1_tm1)
+                term_3 = wx_i_t * c_im1_tm1
+            c_i_t = term_1+term_2 if (i<order-1) or (mode&4) else term_3
+            sum_c_t = sum_c_t + c_i_t if mode&4 else sum_c_t + term_3
             lst.append(c_i_t)
             c_im1_tm1 = c_i_tm1
-            c_im1_t = c_i_t
 
-        if not self.has_outgate:
-            h_t = activation(c_i_t + self.bias)
+        final_t = sum_c_t if mode&8 else c_i_t
+        if not self.has_highway:
+            #h_t = activation(final_t + self.bias)
+            h_t = activation(final_t)
         else:
-            out_t = self.out_gate.forward(x, h_tm1)
-            h_t = out_t * activation(c_i_t + self.bias)
+            #out_t = self.out_gate.forward(x, h_tm1)
+            out_t = self.out_gate.forward(x)
+            #h_t = out_t*activation(final_t)
+            #h_t = activation(final_t)+x
+            h_t = out_t*activation(final_t) + (1-out_t)*x
         lst.append(h_t)
 
         if hc.ndim > 1:
@@ -517,63 +551,9 @@ class RCNN(Layer):
         else:
             return h[:,self.n_out*self.order:]
 
-    def forward2(self, x, hc, f_tm1):
-        order, n_in, n_out, activation = self.order, self.n_in, self.n_out, self.activation
-        layers = self.internal_layers
-        if hc.ndim > 1:
-            h_tm1 = hc[:, n_out*order:]
-        else:
-            h_tm1 = hc[n_out*order:]
-
-        forget_t = layers[order].forward(x, h_tm1)
-        lst = [ ]
-        for i in range(order):
-            if hc.ndim > 1:
-                c_i_tm1 = hc[:, n_out*i:n_out*i+n_out]
-            else:
-                c_i_tm1 = hc[n_out*i:n_out*i+n_out]
-            in_i_t = layers[i].forward(x)
-            if i == 0:
-                c_i_t = forget_t * c_i_tm1 + (1-forget_t) * in_i_t
-            elif self.mode == 0:
-                c_i_t = forget_t * c_i_tm1 + (1-forget_t) * (in_i_t * c_im1_t)
-            else:
-                c_i_t = forget_t * c_i_tm1 + (1-forget_t) * (in_i_t + c_im1_tm1)
-            lst.append(c_i_t)
-            c_im1_tm1 = c_i_tm1
-            c_im1_t = c_i_t
-
-        if not self.has_outgate:
-            h_t = activation(c_i_t + self.bias)
-        else:
-            out_t = self.out_gate.forward(x, h_tm1)
-            h_t = out_t * activation(c_i_t + self.bias)
-        lst.append(h_t)
-
-        if hc.ndim > 1:
-            return T.concatenate(lst, axis=1), forget_t
-        else:
-            return T.concatenate(lst), forget_t
-
-    def get_input_gate(self, x, h0=None):
-        if h0 is None:
-            if x.ndim > 1:
-                h0 = T.zeros((x.shape[1], self.n_out*(self.order+1)), dtype=theano.config.floatX)
-                f0 = T.zeros((x.shape[1], self.n_out), dtype=theano.config.floatX)
-            else:
-                h0 = T.zeros((self.n_out*(self.order+1),), dtype=theano.config.floatX)
-                f0 = T.zeros((self.n_out,), dtype=theano.config.floatX)
-
-        [h, f], _ = theano.scan(
-                    fn = self.forward2,
-                    sequences = x,
-                    outputs_info = [ h0,f0 ]
-                )
-        return 1.0-f
-
     @property
     def params(self):
-        return [ x for layer in self.internal_layers for x in layer.params ] + [ self.bias ]
+        return [ x for layer in self.internal_layers for x in layer.params ] #+ [ self.bias ]
 
     @params.setter
     def params(self, param_list):
@@ -582,6 +562,147 @@ class RCNN(Layer):
             end = start + len(layer.params)
             layer.params = param_list[start:end]
             start = end
-        self.bias.set_value(param_list[-1].get_value())
+        #self.bias.set_value(param_list[-1].get_value())
+
+
+class ScalarRCNN(Layer):
+
+    '''
+        RCNN
+
+        Inputs
+        ------
+
+            order           : CNN feature width
+            mode            : 1-bit --> linear?
+                              2-bit --> (1-decay) normalize?
+                              3-bit --> last internal layer has skip?
+    '''
+    def __init__(self, n_in, n_out, decay=0.5, activation=tanh,
+            order=1, mode=1, clip_gradients=False):
+
+        self.n_in = n_in
+        self.n_out = n_out
+        self.activation = activation
+        self.order = order
+        self.clip_gradients = clip_gradients
+        self.mode = mode
+
+        internal_layers = self.internal_layers = [ ]
+        for i in range(order):
+            input_layer = Layer(n_in, n_out, linear, has_bias=False, \
+                    clip_gradients=clip_gradients)
+            internal_layers.append(input_layer)
+
+        self.decay = decay
+
+        #self.bias = create_shared(random_init((n_out,)), name="bias")
+
+
+    '''
+        One step of recurrent
+
+        Inputs
+        ------
+
+            x           : input token at current time/position t
+            hc          : hidden/visible states at time/position t-1
+
+        Outputs
+        -------
+
+            return hidden/visible states at time/position t
+    '''
+    def forward(self, x, hc):
+        order, n_in, n_out, activation = self.order, self.n_in, self.n_out, self.activation
+        layers = self.internal_layers
+        if hc.ndim > 1:
+            h_tm1 = hc[:, n_out*order:]
+        else:
+            h_tm1 = hc[n_out*order:]
+
+        mode = self.mode
+        forget_t = self.decay
+        #in_t = 1.0 if mode&2 else 1-forget_t
+        in_t = 1-forget_t if mode&2 else 1.0
+        lst = [ ]
+        sum_c_t = 0
+        for i in range(order):
+            if hc.ndim > 1:
+                c_i_tm1 = hc[:, n_out*i:n_out*i+n_out]
+            else:
+                c_i_tm1 = hc[n_out*i:n_out*i+n_out]
+            wx_i_t = layers[i].forward(x)
+            term_1 = forget_t * c_i_tm1
+            if i == 0:
+                term_2 = in_t * wx_i_t
+                term_3 = wx_i_t
+            elif mode&1:
+                term_2 = in_t * (wx_i_t + c_im1_tm1)
+                term_3 = wx_i_t + c_im1_tm1
+            else:
+                term_2 = in_t * (wx_i_t * c_im1_tm1)
+                term_3 = wx_i_t * c_im1_tm1
+            c_i_t = term_1+term_2 if (i<order-1) or (mode&4) else term_3
+            sum_c_t = sum_c_t + c_i_t if mode&4 else sum_c_t + term_3
+            lst.append(c_i_t)
+            c_im1_tm1 = c_i_tm1
+
+        final_t = sum_c_t if mode&8 else c_i_t
+        #h_t = activation(final_t + self.bias)
+        h_t = activation(final_t)
+        lst.append(h_t)
+
+        if hc.ndim > 1:
+            return T.concatenate(lst, axis=1)
+        else:
+            return T.concatenate(lst)
+
+    '''
+        Apply recurrent steps to input of all positions/time
+
+        Inputs
+        ------
+
+            x           : input tokens x_1, ... , x_n
+            h0          : initial states
+            return_c    : whether to return hidden states in addition to visible
+                          state
+
+        Outputs
+        -------
+
+            return visible states (and hidden states) of all positions/time
+    '''
+    def forward_all(self, x, h0=None, return_c=False):
+        if h0 is None:
+            if x.ndim > 1:
+                h0 = T.zeros((x.shape[1], self.n_out*(self.order+1)), dtype=theano.config.floatX)
+            else:
+                h0 = T.zeros((self.n_out*(self.order+1),), dtype=theano.config.floatX)
+        h, _ = theano.scan(
+                    fn = self.forward,
+                    sequences = x,
+                    outputs_info = [ h0 ]
+                )
+        if return_c:
+            return h
+        elif x.ndim > 1:
+            return h[:,:,self.n_out*self.order:]
+        else:
+            return h[:,self.n_out*self.order:]
+
+    @property
+    def params(self):
+        return [ x for layer in self.internal_layers for x in layer.params ] #+ [ self.bias ]
+
+    @params.setter
+    def params(self, param_list):
+        start = 0
+        for layer in self.internal_layers:
+            end = start + len(layer.params)
+            layer.params = param_list[start:end]
+            start = end
+        #self.bias.set_value(param_list[-1].get_value())
 
 

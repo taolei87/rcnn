@@ -46,6 +46,7 @@ class Dropout(object):
         self.dropout_prob = dropout_prob
         self.srng = srng if srng is not None else default_srng
         self.v2 = v2
+        #self.v2 = True
 
     def forward(self, x):
         d = (1-self.dropout_prob) if not self.v2 else (1-self.dropout_prob)**0.5
@@ -114,11 +115,12 @@ class Layer(object):
         else:
             W_vals = random_init((n_in,n_out))
             if activation == softmax:
-                W_vals *= 0.001
+                W_vals *= 1.0 #0.001
             if activation == ReLU:
                 b_vals = np.ones(n_out, dtype=theano.config.floatX) * 0.01
             else:
-                b_vals = random_init((n_out,))
+                #b_vals = random_init((n_out,))
+                b_vals = np.zeros(n_out, dtype=theano.config.floatX)
         self.W = create_shared(W_vals, name="W")
         if self.has_bias: self.b = create_shared(b_vals, name="b")
 
@@ -251,7 +253,8 @@ class EmbeddingLayer(object):
 
             self.lst_words = lst_words
             self.vocab_map = vocab_map
-            emb_vals = random_init((len(self.vocab_map), n_d))
+            emb_vals = random_init((len(self.vocab_map), n_d), rng_type="uniform")*(n_d**(-0.5))
+            #emb_vals = random_init((len(self.vocab_map), n_d))
             self.init_end = -1
 
         if oov is not None and oov is not False:
@@ -348,7 +351,6 @@ class LSTM(Layer):
         self.forget_gate = RecurrentLayer(n_in, n_out, sigmoid, clip_gradients)
         self.out_gate = RecurrentLayer(n_in, n_out, sigmoid, clip_gradients)
         self.input_layer = RecurrentLayer(n_in, n_out, activation, clip_gradients)
-
 
         self.internal_layers = [ self.input_layer, self.in_gate,
                                  self.forget_gate , self.out_gate ]

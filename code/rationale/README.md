@@ -11,6 +11,10 @@ The method learns to provide justifications, i.e. rationales, as supporting evid
 </p>
 
 <br>
+
+A **Tensorflow implementation** is avaiable: https://github.com/RiaanZoetmulder/Master-Thesis/tree/master/rationale (by Riaan Zoetmulder)
+<br>
+
 ### Overview of the Model
 We optimize two modular (neural) components, generator and encoder, to produce rationales and predictions. The framework is generic -- generator and encoder can be implemented and realized in various ways such as using RNNs or CNNs. We train the model in a RL style using policy gradient (specifically REINFORCE), as illustrated below.
 <p align="center">
@@ -18,6 +22,7 @@ We optimize two modular (neural) components, generator and encoder, to produce r
 </p>
 
 <br>
+
 ### Sub-directories
   - this root directory contains impelmentation of the rationale model used for the beer review data. ``rationale.py`` implements the independent selection version and ``rationale_dependent.py`` implements the sequential selection version. See the paper for details.
   - [example_rationales](example_rationales) contains rationales generated for the beer review data. 
@@ -25,6 +30,7 @@ We optimize two modular (neural) components, generator and encoder, to produce r
   - [medical](medical) contains alternative implementation for medical report classification. 
 
 <br>
+
 ### Data
   - **Proudct reviews:** We provide subsets of reviews and pre-trained word embeddings at [here](http://people.csail.mit.edu/taolei/beer/). This should be sufficient for producing our results. Please contact the author of the dataset, [Prof. McAuley](http://cseweb.ucsd.edu/~jmcauley/) for the full set (1.5 million reviews).   
   - **AskUbuntu data:** AskUbuntu question data is available in [this repo](https://github.com/taolei87/askubuntu).
@@ -33,6 +39,7 @@ We optimize two modular (neural) components, generator and encoder, to produce r
 **Important Note:** all data is for research-purpose only.
 
 <br>
+
 ### Code Usage
 
 To run the code, you need Numpy and Theano (> 0.7.0.dev-8d3a67 I used) installed. Next:
@@ -54,6 +61,7 @@ python rationale.py                             # independent selection version
 ```
 
 <br>
+
 ### To-do
   - [ ] better documentation of the code
   - [ ] more example usage of the code

@@ -12,7 +12,10 @@ The method learns to provide justifications, i.e. rationales, as supporting evid
 
 <br>
 
-A **Tensorflow implementation** is avaiable: https://github.com/RiaanZoetmulder/Master-Thesis/tree/master/rationale (by Riaan Zoetmulder)
+A **Pytorch implementation** is available: https://github.com/yala/text_nn. This version uses Gumbel softmax instead of REINFORCE for training.
+<br>
+
+A **Tensorflow implementation** is available: https://github.com/RiaanZoetmulder/Master-Thesis/tree/master/rationale (by Riaan Zoetmulder)
 <br>
 
 ### Overview of the Model

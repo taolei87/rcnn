@@ -1,7 +1,14 @@
 ### Latest updates
 Check [code/rationale](/code/rationale) for the project of learning rationales for neural prediction:  <p align="center">
 <img height =140 src="code/rationale/figures/example.png"> &nbsp; &nbsp; &nbsp; &nbsp; <img width=350 src="code/rationale/figures/model_framework.png">
+
+
+[Adam Yala](https://github.com/yala/) has implemented a **Pytorch** version of the rationale project! 
+
+Check it out at: https://github.com/yala/text_nn
+
 </p>
+
 -------
 
 #### About this repo

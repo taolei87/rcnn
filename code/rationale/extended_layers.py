@@ -85,7 +85,7 @@ class ZLayer(object):
 
     def forward(self, x_t, z_t, h_tm1, pz_tm1):
 
-        print "z_t", z_t.ndim
+        print ("z_t", z_t.ndim)
 
         pz_t = sigmoid(
                     T.dot(x_t, self.w1) +
@@ -118,7 +118,7 @@ class ZLayer(object):
 
     def sample(self, x_t, z_tm1, h_tm1):
 
-        print "z_tm1", z_tm1.ndim, type(z_tm1)
+        print ("z_tm1", z_tm1.ndim, type(z_tm1))
 
         pz_t = sigmoid(
                     T.dot(x_t, self.w1) +

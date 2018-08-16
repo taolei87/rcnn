@@ -3,7 +3,7 @@ import os, sys, gzip
 import time
 import math
 import json
-import cPickle as pickle
+import pickle
 
 import numpy as np
 import theano
@@ -42,7 +42,7 @@ class Generator(object):
 
         layers = self.layers = [ ]
         layer_type = args.layer.lower()
-        for i in xrange(2):
+        for i in range(2):
             if layer_type == "rcnn":
                 l = RCNN(
                         n_in = n_e,
@@ -91,10 +91,10 @@ class Generator(object):
         #
         z_pred = self.z_pred = theano.gradient.disconnected_grad(z_pred)
         self.sample_updates = sample_updates
-        print "z_pred", z_pred.ndim
+        print ("z_pred", z_pred.ndim)
 
         probs = output_layer.forward_all(h_final, z_pred)
-        print "probs", probs.ndim
+        print ("probs", probs.ndim)
 
         logpz = - T.nnet.binary_crossentropy(probs, z_pred) * masks
         logpz = self.logpz = logpz.reshape(x.shape)
@@ -154,7 +154,7 @@ class Encoder(object):
         layers = self.layers = [ ]
         depth = args.depth
         layer_type = args.layer.lower()
-        for i in xrange(depth):
+        for i in range(depth):
             if layer_type == "rcnn":
                 l = ExtRCNN(
                         n_in = n_e if i == 0 else n_d,
@@ -388,7 +388,7 @@ class Model(object):
                 inputs = [ self.x, self.y ],
                 outputs = [ self.encoder.obj, self.encoder.loss, \
                                 self.encoder.sparsity_cost, self.z, gnorm_e, gnorm_g ],
-                updates = updates_e.items() + updates_g.items() + self.generator.sample_updates,
+                updates = (updates_e.items() | updates_g.items()) + self.generator.sample_updates,
             )
 
         eval_period = args.eval_period
@@ -400,7 +400,7 @@ class Model(object):
         tolerance = 0.10 + 1e-3
         dropout_prob = np.float64(args.dropout).astype(theano.config.floatX)
 
-        for epoch in xrange(args.max_epochs):
+        for epoch in range(args.max_epochs):
             unchanged += 1
             if unchanged > 20: return
 
@@ -421,7 +421,7 @@ class Model(object):
                 start_time = time.time()
 
                 N = len(train_batches_x)
-                for i in xrange(N):
+                for i in range(N):
                     if (i+1) % 100 == 0:
                         say("\r{}/{} {:.2f}       ".format(i+1,N,p1/(i+1)))
 
@@ -601,7 +601,7 @@ class Model(object):
 
 
 def main():
-    print args
+    print (args)
     assert args.embedding, "Pre-trained word embeddings required."
 
     embedding_layer = myio.create_embedding_layer(

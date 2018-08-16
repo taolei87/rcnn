@@ -3,7 +3,7 @@ import os, sys, gzip
 import time
 import math
 import json
-import cPickle as pickle
+import pickle
 
 import numpy as np
 import theano
@@ -43,7 +43,7 @@ class Generator(object):
 
         layers = self.layers = [ ]
         layer_type = args.layer.lower()
-        for i in xrange(2):
+        for i in range(2):
             if layer_type == "rcnn":
                 l = RCNN(
                         n_in = n_e,# if i == 0 else n_d,
@@ -104,7 +104,8 @@ class Generator(object):
 
         # batch
         zsum = T.sum(z, axis=0, dtype=theano.config.floatX)
-        zdiff = T.sum(T.abs_(z[1:]-z[:-1]), axis=0, dtype=theano.config.floatX)
+        zdiff_pre = (z[1:] - z[:-1])*1.0
+        zdiff = T.sum(abs(zdiff_pre), axis=0, dtype=theano.config.floatX)
 
         loss_mat = encoder.loss_mat
         if args.aspect < 0:
@@ -139,7 +140,7 @@ class Generator(object):
         l2_cost = l2_cost * args.l2_reg
 
         cost = self.cost = cost_logpz * 10 + l2_cost
-        print "cost.dtype", cost.dtype
+        print ("cost.dtype", cost.dtype)
 
         self.cost_e = loss * 10 + encoder.l2_cost
 
@@ -175,7 +176,7 @@ class Encoder(object):
         layers = self.layers = [ ]
         depth = args.depth
         layer_type = args.layer.lower()
-        for i in xrange(depth):
+        for i in range(depth):
             if layer_type == "rcnn":
                 l = ExtRCNN(
                         n_in = n_e if i == 0 else n_d,
@@ -395,7 +396,7 @@ class Model(object):
                     self.z : self.generator.z_pred
                 },
                 #updates = updates_g,
-                updates = updates_g.items() + updates_e.items() #+ self.generator.sample_updates,
+                updates = updates_g.items() | updates_e.items() #+ self.generator.sample_updates,
                 #no_default_updates = True
             )
 
@@ -405,7 +406,7 @@ class Model(object):
         best_dev_e = 1e+2
         dropout_prob = np.float64(args.dropout).astype(theano.config.floatX)
 
-        for epoch in xrange(args.max_epochs):
+        for epoch in range(args.max_epochs):
             unchanged += 1
             if unchanged > 10: return
 
@@ -421,7 +422,7 @@ class Model(object):
             start_time = time.time()
 
             N = len(train_batches_x)
-            for i in xrange(N):
+            for i in range(N):
                 if (i+1) % 100 == 0:
                     say("\r{}/{}     ".format(i+1,N))
 
@@ -580,7 +581,7 @@ class Model(object):
 
 
 def main():
-    print args
+    print (args)
     assert args.embedding, "Pre-trained word embeddings required."
 
     embedding_layer = myio.create_embedding_layer(

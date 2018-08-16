@@ -16,8 +16,8 @@ from collections import OrderedDict
 import numpy as np
 import theano
 import theano.tensor as T
-from theano.sandbox.cuda.basic_ops import HostFromGpu
-from theano.sandbox.cuda.var import CudaNdarraySharedVariable
+from theano.gpuarray.basic_ops import HostFromGpu
+from theano.gpuarray.type import GpuArraySharedVariable
 from theano.printing import debugprint
 
 from .initialization import default_mrng
@@ -100,7 +100,7 @@ def get_subtensor_op_inputs(p):
     if hasattr(origin, 'owner') and hasattr(origin.owner, 'op') and \
             isinstance(origin.owner.op, HostFromGpu):
         origin = origin.owner.inputs[0]
-        assert isinstance(origin, CudaNdarraySharedVariable)
+        assert isinstance(origin, GpuArraySharedVariable)
     return origin, indexes
 
 def get_similar_subtensor(matrix, indexes, param_op):

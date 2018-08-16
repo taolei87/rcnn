@@ -2,6 +2,7 @@
 import gzip
 import random
 import json
+import math
 
 import theano
 import numpy as np
@@ -12,8 +13,9 @@ from utils import say, load_embedding_iterator
 def read_rationales(path):
     data = [ ]
     fopen = gzip.open if path.endswith(".gz") else open
-    with fopen(path) as fin:
+    with fopen(path, 'rb') as fin:
         for line in fin:
+            line = line.decode('ascii')
             item = json.loads(line)
             data.append(item)
     return data
@@ -21,8 +23,9 @@ def read_rationales(path):
 def read_annotations(path):
     data_x, data_y = [ ], [ ]
     fopen = gzip.open if path.endswith(".gz") else open
-    with fopen(path) as fin:
+    with fopen(path, 'rb') as fin:
         for line in fin:
+            line = line.decode('ascii')
             y, sep, x = line.partition("\t")
             x, y = x.split(), y.split()
             if len(x) == 0: continue
@@ -52,13 +55,13 @@ def create_embedding_layer(path):
 def create_batches(x, y, batch_size, padding_id, sort=True):
     batches_x, batches_y = [ ], [ ]
     N = len(x)
-    M = (N-1)/batch_size + 1
+    M = int(math.floor((N-1)/batch_size)) + 1
     if sort:
         perm = range(N)
         perm = sorted(perm, key=lambda i: len(x[i]))
         x = [ x[i] for i in perm ]
         y = [ y[i] for i in perm ]
-    for i in xrange(M):
+    for i in range(M):
         bx, by = create_one_batch(
                     x[i*batch_size:(i+1)*batch_size],
                     y[i*batch_size:(i+1)*batch_size],
@@ -68,7 +71,7 @@ def create_batches(x, y, batch_size, padding_id, sort=True):
         batches_y.append(by)
     if sort:
         random.seed(5817)
-        perm2 = range(M)
+        perm2 = list(range(M))
         random.shuffle(perm2)
         batches_x = [ batches_x[i] for i in perm2 ]
         batches_y = [ batches_y[i] for i in perm2 ]
